@@ -9,6 +9,8 @@ import gradient from './filter'
 //@ts-ignore
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
+import {canvasBuf} from "./push"
+
 console.log("Version", THREE.REVISION, OrbitControls)
 
 const w = 512

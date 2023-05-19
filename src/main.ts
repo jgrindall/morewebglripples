@@ -7,6 +7,7 @@ import { Ripples4 } from "./ripples/ripples4"
 import init from "./ripples/ripples6"
 import {Sand} from "./ripples/sand"
 import {Sand2} from "./ripples/sand2"
+import {Sand3} from "./ripples/sand3"
 import {Points} from "./ripples/points"
 
 console.log(THREE.REVISION)
@@ -39,7 +40,7 @@ function addRipples(){
     })
 }
 
-new Ripples()
-//new Sand2()
-
+//new Ripples()
+new Points()
+//new Sand3()
 //new Points()

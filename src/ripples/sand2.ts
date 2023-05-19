@@ -5,10 +5,10 @@
 import {Brush} from "./brush"
 import gradient from './filter'
 //@ts-ignore
-import {canvasBuf} from "./push"
+import {canvasBuf} from "./push2"
 
-const w = 256
-const h = 256
+const w = 512
+const h = 512
 
 const sandImage = new Image()
 sandImage.src = "./new/sand.jpg"
@@ -87,21 +87,21 @@ export class Sand2{
         gradient(this.drawingCanvas, this.edgeContext)
         
         this.wetSandContext.clearRect(0,0,w,h)
-        this.wetSandContext.drawImage(wetSandImage, 0, 0)
+        this.wetSandContext.drawImage(wetSandImage, 0, 0, w, h)
         this.wetSandContext.globalCompositeOperation = "destination-in"
-        this.wetSandContext.drawImage(this.drawingCanvas, 0, 0)
+        this.wetSandContext.drawImage(this.drawingCanvas, 0, 0, w, h)
         this.wetSandContext.globalCompositeOperation = "source-over"
 
         this.ridgesContext.clearRect(0,0,w,h)
-        this.ridgesContext.drawImage(ridgesImage, 0, 0)
+        this.ridgesContext.drawImage(ridgesImage, 0, 0, w, h)
         this.ridgesContext.globalCompositeOperation = "destination-in"
-        this.ridgesContext.drawImage(this.edgeCanvas, 0, 0)
+        this.ridgesContext.drawImage(this.edgeCanvas, 0, 0, w, h)
         this.ridgesContext.globalCompositeOperation = "source-over"
 
         this.finalContext.clearRect(0,0,w,h)
-        this.finalContext.drawImage(sandImage, 0, 0)
-        this.finalContext.drawImage(this.wetSandCanvas, 0, 0)
-        this.finalContext.drawImage(this.ridgesCanvas, 0, 0)
+        this.finalContext.drawImage(sandImage, 0, 0, w, h)
+        this.finalContext.drawImage(this.wetSandCanvas, 0, 0, w, h)
+        this.finalContext.drawImage(this.ridgesCanvas, 0, 0, w, h)
     }
    
     addListeners(){
