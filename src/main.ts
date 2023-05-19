@@ -40,7 +40,7 @@ function addRipples(){
     })
 }
 
-//new Ripples()
-new Points()
-//new Sand3()
+new Ripples()
+//new Points()
+//new Sand2()
 //new Points()
