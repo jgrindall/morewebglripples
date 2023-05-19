@@ -9,8 +9,6 @@ const w = 64
 const h = 64
 
 const getClr = (clr:string, _alpha:number) => `rgba(${clr}, ${_alpha})`
-        
-
 export class Brush {
     private brushCtx: CanvasRenderingContext2D
     private settings: BrushSettings
@@ -103,7 +101,7 @@ export class Brush {
     }
 
     redraw() {
-        const gradient = this.createGradient("100, 100, 100", 1);
+        const gradient = this.createGradient("60, 60, 60", 1);
         const gradient2 = this.createGradient("66, 45, 22", 0.4);
         this.brushCtx.clearRect(0, 0, w, h)
 
