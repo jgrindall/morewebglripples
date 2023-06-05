@@ -3,7 +3,7 @@
 
 
 import {Brush} from "./brush"
-import gradient from './filter'
+import Filter from './filter'
 //@ts-ignore
 import {canvasBuf} from "./push2"
 
@@ -84,7 +84,7 @@ export class Sand2{
         this.addListeners()
     }
     onDraw(){
-        gradient(this.drawingCanvas, this.edgeContext)
+        new Filter(this.drawingCanvas, this.edgeContext).run()
         
         this.wetSandContext.clearRect(0,0,w,h)
         this.wetSandContext.drawImage(wetSandImage, 0, 0, w, h)

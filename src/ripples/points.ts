@@ -1,8 +1,6 @@
 //@ts-ignore
-
 import * as THREE from 'three'
-
-console.log("Version", THREE.REVISION)
+import Filter from './filter'
 
 const w = 800
 const h = 400
@@ -14,19 +12,14 @@ const rand = (a:number, b:number):number=>{
     return Math.random()*(b - a) + a
 }
 
-const getMaxIndex = (a:number[]):number => {
-    let maxIndex = -1
-    let maxValue = -Infinity
-    for(let index = 0; index < a.length; index++){
-        const val = a[index]
-        if(val > maxValue){
-            maxValue = val
-            maxIndex = index
-        }
-    }
-    return maxIndex;
+const makeCanvas = (name:string, w:number, h:number)=>{
+    const c = document.createElement("canvas")
+    c.id = name
+    document.body.appendChild(c)
+    c.width = w
+    c.height = h
+    return c
 }
-
 export class Points{
 
     container: any
@@ -44,21 +37,42 @@ export class Points{
     drawingCanvas: HTMLCanvasElement
     drawingContext: CanvasRenderingContext2D
 
+    drawingCanvas2: HTMLCanvasElement
+    drawingContext2: CanvasRenderingContext2D
 
-    windCanvas: HTMLCanvasElement
-    windContext: CanvasRenderingContext2D
-    wind:any[] =[]
+    texture: any
+
+    outlineCanvas: HTMLCanvasElement
+    outlineContext: CanvasRenderingContext2D
+
+    combinedCanvas: HTMLCanvasElement
+    combinedContext: CanvasRenderingContext2D
+
+
+    dryCanvas: HTMLCanvasElement
+    dryContext: CanvasRenderingContext2D
+
+    wetCanvas: HTMLCanvasElement
+    wetContext: CanvasRenderingContext2D
+
+
+    noiseCanvas: HTMLCanvasElement
+    noiseContext: CanvasRenderingContext2D
 
     cTexture: THREE.CanvasTexture
     b1: THREE.Float32BufferAttribute
     b2: THREE.Float32BufferAttribute
     b3: THREE.Float32BufferAttribute
     b4: THREE.Float32BufferAttribute
+    b5: THREE.Float32BufferAttribute
     time:number = 0;
 
 
     pen: HTMLImageElement
-
+    dry: HTMLImageElement
+    wet: HTMLImageElement
+    noise: HTMLImageElement
+    
 
     constructor(){
         this.animate = this.animate.bind(this)
@@ -66,28 +80,46 @@ export class Points{
         this.pen = new Image()
         this.pen.src = "./pen.png"
 
+        this.dry = new Image()
+        this.dry.src = "./dry.jpg"
+        
+        this.wet = new Image()
+        this.wet.src = "./wet.png"
+        
+        this.noise = new Image()
+        this.noise.src = "./noise3.png"
+
     }
     load(){
         this.init();
-        this.animate(0);
+        this.animate();
     }
     init(){
         this.container = document.getElementById('container');
 
-        this.drawingCanvas = document.createElement("canvas")
-        document.body.appendChild(this.drawingCanvas)
-        this.drawingCanvas.width = w
-        this.drawingCanvas.height = h
+        this.drawingCanvas = makeCanvas("drawingCanvas", w, h)
         this.drawingContext = this.drawingCanvas.getContext('2d');
-        this.cTexture = new THREE.CanvasTexture(this.drawingCanvas);
 
-        this.windCanvas = document.createElement("canvas")
-        document.body.appendChild(this.windCanvas)
-        this.windCanvas.width = w
-        this.windCanvas.height = h
-        this.windContext = this.windCanvas.getContext('2d');
-
+        this.drawingCanvas2 = makeCanvas("drawingCanvas2", w, h)
+        this.drawingContext2 = this.drawingCanvas2.getContext('2d');
         
+        //this.cTexture = new THREE.CanvasTexture(this.drawingCanvas);
+
+        this.outlineCanvas = makeCanvas("outline", w, h)
+        this.outlineContext = this.outlineCanvas.getContext('2d')
+
+        this.combinedCanvas = makeCanvas("combined", w, h)
+        this.combinedContext = this.combinedCanvas.getContext('2d')
+
+        this.dryCanvas = makeCanvas("dry", w, h)
+        this.dryContext = this.dryCanvas.getContext('2d')
+
+        this.wetCanvas = makeCanvas("wet", w, h)
+        this.wetContext = this.wetCanvas.getContext('2d')
+
+        this.noiseCanvas = makeCanvas("noise", w, h)
+        this.noiseContext = this.noiseCanvas.getContext('2d')
+
         this.camera = new THREE.OrthographicCamera( width / - 2, width / 2, height / 2, height / - 2, 1, 1000 )
         this.camera.position.z = 4.25;
         this.scene = new THREE.Scene();
@@ -120,7 +152,8 @@ export class Points{
         const initialPositions = []
         const velocities = []
         const accelerations = []
-        const colors = []
+        const hues = []
+        const scale = []
         this.geo = new THREE.BufferGeometry()
         for(let i = 0; i < MAX; i++) {
 
@@ -140,29 +173,25 @@ export class Points{
             accelerations.push(0)
             accelerations.push(0)
 
-            colors.push(rand(0, 1))
-            colors.push(0.1)
-            colors.push(0.1)
+            hues.push(1)
+            
+            scale.push(1)
+           
         }
         this.b1 = new THREE.Float32BufferAttribute(initialPositions, 3)
         this.b2 = new THREE.Float32BufferAttribute(velocities, 3)
         this.b3 = new THREE.Float32BufferAttribute(accelerations, 3)
-        this.b4 = new THREE.Float32BufferAttribute(colors, 3)
+        this.b4 = new THREE.Float32BufferAttribute(hues, 1)
+        this.b5 = new THREE.Float32BufferAttribute(scale, 1)
 
         this.geo.setAttribute('position', this.b1)
         this.geo.setAttribute('velocity', this.b2)
         this.geo.setAttribute('acceleration', this.b3)
-        this.geo.setAttribute('color', this.b4)
+        this.geo.setAttribute('hue', this.b4)
+        this.geo.setAttribute('scale', this.b5)
         
         this.uniforms = {
-            time: {
-                type: "f",
-                value: 12.0
-            },
-            u_texture: {
-                type: "t",
-                value: this.cTexture
-            }
+            
         }
 
         const mat = new THREE.ShaderMaterial( {
@@ -170,35 +199,39 @@ export class Points{
 
             vertexShader: `
 uniform float time;
-attribute vec3 velocity;
-attribute vec3 acceleration;
-varying vec3 vColor;
+attribute float scale;
+attribute float hue;
+varying float vHue;
 void main() {
 
     vec2 uv = position.xy;
-    vColor = color;
+    vHue = hue;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    gl_PointSize = color.r * 5.0;
+    gl_PointSize = scale;
 }
 `,
 
             fragmentShader: `
-varying vec3 vColor;
+varying float vHue;
 void main() {
-    gl_FragColor = vec4(vColor, 1.0);
+    vec3 sand = vec3(230.0/255.0, 210.0/255.0, 160.0/255.0);
+    gl_FragColor = vec4(sand * vHue, 0.2);
 }
 `,
-            blending: THREE.AdditiveBlending,
-            depthTest: false,
-            transparent: true,
             vertexColors: true
         });
 
         this.mesh = new THREE.Points(this.geo, mat)
+
+        this.texture = new THREE.CanvasTexture(this.combinedCanvas)
         
+        var material = new THREE.MeshPhongMaterial({
+            map: this.texture
+        })
+
         this.box = new THREE.Mesh(
             new THREE.PlaneGeometry(8.9, 3.9, 2, 2),
-            new THREE.MeshBasicMaterial({color: "rgb(236,204,162)"})
+            material
         )
         
         var realLight = new THREE.PointLight(0xffffff, 0.9);
@@ -212,27 +245,69 @@ void main() {
         this.addListeners()
     }
   
-    drawWind(){
-        const maxDur = 20
-        const maxSize = 30
-        this.drawingContext.clearRect(0,0,w,h)
-        this.wind.forEach((w)=>{
-            let s = maxSize*(maxDur - w.t) / maxDur
+    drawLines(p: any){
 
-            this.drawingContext.beginPath()
-            this.drawingContext.arc(w.x, w.y, s, 0, 2 * Math.PI)
-            this.drawingContext.closePath()
+        const dx = Math.abs(this.currentPos.x - p.x)
+        const dy = Math.abs(this.currentPos.y - p.y)
+        const speed = Math.sqrt(dx*dx + dy*dy)
 
-            this.drawingContext.fillStyle = `rgba(
-                ${Math.floor(255 - 6 * s)},
-                ${Math.floor(255 - 6 * s)},
-                ${Math.floor(255 - 6 * s)},
-                ${Math.floor(255 - 6 * s)})`;
-            this.drawingContext.fill()
-            w.t++;
-        })
-        this.wind = this.wind.filter(w => w.t <= maxDur)
+        let scale = 1
+
+        const maxSpeed = 4
+        const minSpeed = 1
+
+        const maxScale = 1
+        const minScale = 0.5
+
+        if(speed > maxSpeed){
+            scale = minScale
+        }
+        else if(speed < minSpeed){
+            scale = maxScale
+        }
+        else{
+            scale = (speed - minSpeed) / (maxSpeed - minSpeed) // 0 to 1
+            scale = scale * (minScale - maxScale) + maxScale
+        }
         
+        let numPoints = Math.max(Math.min(Math.ceil(speed/4), 20), 1) / scale;
+
+        const drawingSize = 16
+        const penSize = 10
+
+        const drawAt = (p:{x:number, y:number})=>{
+            let drawingW = drawingSize*scale
+            this.drawingContext.drawImage(this.pen, 0, 0, penSize, penSize, p.x - drawingW/2, p.y - drawingW/2, drawingW, drawingW)
+            drawingW *= 2.5
+            this.drawingContext2.drawImage(this.pen, 0, 0, penSize, penSize, p.x - drawingW/2, p.y - drawingW/2, drawingW, drawingW)
+        }
+
+        for(let i = 1; i <= numPoints; i++){
+            const t = i/numPoints
+            const x:any = this.currentPos.x + t*(p.x - this.currentPos.x)
+            const y:any = this.currentPos.y + t*(p.y - this.currentPos.y)
+            drawAt({x, y})
+        
+        }
+
+        this.dryContext.drawImage(this.dry, 0, 0)
+        
+        this.noiseContext.drawImage(this.noise, 0, 0)
+        this.noiseContext.globalCompositeOperation = "destination-in"
+        this.noiseContext.drawImage(this.drawingCanvas2, 0, 0)
+        this.noiseContext.globalCompositeOperation = "source-over"
+
+        this.wetContext.drawImage(this.wet, 0, 0)
+        this.wetContext.globalCompositeOperation = "destination-in"
+        this.wetContext.drawImage(this.drawingCanvas, 0, 0)
+        this.wetContext.globalCompositeOperation = "source-over"
+
+        this.combinedContext.clearRect(0, 0, w, h)
+        this.combinedContext.drawImage(this.dryCanvas, 0, 0)
+        this.combinedContext.drawImage(this.noiseCanvas, 0, 0)
+        this.combinedContext.drawImage(this.wetCanvas, 0, 0)
+        
+        this.texture.needsUpdate = true
     }
 
     addListeners(){
@@ -240,15 +315,12 @@ void main() {
         document.addEventListener('pointermove', (e) => {
             e.preventDefault()
             if(this.down){
-                this.currentPos = {
+                const p = {
                     x:e.pageX,
                     y:e.pageY,
-                    t:0
                 }
-                this.wind.push(this.currentPos)
-                if(this.wind.length >= 2){
-                    this.wind.shift()
-                }
+                this.drawLines(p)
+                this.currentPos = p
             }
         });
         document.addEventListener('pointerdown', (e) => {
@@ -264,150 +336,60 @@ void main() {
         });
     }
     applyWind(){
-        
-        const b = this.geo.attributes.position
-
-        var positions = b.array
-
-        for(let i = 0; i < positions.length/3; i++){
-
-            const x = b.getX(i)
-            const y = b.getY(i)
-            const z = b.getZ(i)
-
-            const pos =  {
-                x: (x + width/2) / width,
-                y: (y + height/2) / height
-            } // 0 to 1
-
-            pos.x *= w
-            pos.y *= h
-            pos.y = h - pos.y
-
-            pos.x = Math.round(pos.x)
-            pos.y = Math.round(pos.y)
-
-            pos.x = Math.min(Math.max(0, pos.x), this.drawingCanvas.width)
-            pos.y = Math.min(Math.max(0, pos.y), this.drawingCanvas.height)
-
-            const data =  this.drawingContext.getImageData(pos.x, pos.y, 1, 1).data;
-            const r = data[0];
-            const disp = -0.05;
-
-            if(r > 0){
-                const D = 5;
-                const dataA = this.drawingContext.getImageData(pos.x - D, pos.y, 1, 1).data;
-                const dataB = this.drawingContext.getImageData(pos.x, pos.y - D, 1, 1).data;
-                const dataC = this.drawingContext.getImageData(pos.x + D, pos.y, 1, 1).data;
-                const dataD = this.drawingContext.getImageData(pos.x, pos.y + D, 1, 1).data;
-
-                const maxIndex = getMaxIndex([dataA[0], dataB[0], dataC[0], dataD[0]])
-                if(maxIndex === 0){
-                    b.setXYZ( i, x - disp, y, z);
-                }
-                if(maxIndex === 1){
-                    b.setXYZ( i, x, y + disp, z);
-                }
-                if(maxIndex === 2){
-                    b.setXYZ( i, x + disp, y, z);
-                }
-                if(maxIndex === 3){
-                   b.setXYZ( i, x, y - disp, z);
-                }
-            }
-        }
-
-    }
-    applyWind2(){
         const b = this.geo.attributes.position
         const v = this.geo.attributes.velocity
         const a = this.geo.attributes.acceleration
-
+        const hu = this.geo.attributes.hue
+        const s = this.geo.attributes.scale
         var positions = b.array
-       
         const delta = 0.01
-
         for(let i = 0; i < positions.length/3; i++){
-
             const x = b.getX(i)
             const y = b.getY(i)
-            const z = b.getZ(i)
-
             const pos =  {
                 x: (x + width/2) / width,
                 y: (y + height/2) / height
             } // 0 to 1
-
             pos.x *= w
             pos.y *= h
             pos.y = h - pos.y
-
             pos.x = Math.round(pos.x)
             pos.y = Math.round(pos.y)
-
             pos.x = Math.min(Math.max(0, pos.x), this.drawingCanvas.width)
             pos.y = Math.min(Math.max(0, pos.y), this.drawingCanvas.height)
-            
-
             const vx = v.getX(i)
             const vy = v.getY(i)
-            const vz = v.getZ(i)
-
             const ax = a.getX(i)
             const ay = a.getY(i)
-            const az = a.getZ(i)
-
-            b.setXYZ( i, x + vx*delta, y + vy*delta, 0)
-
+            b.setXYZ( i, x + vx*delta, y + vy*delta, 0.1)
             const dx = pos.x - this.currentPos.x
             const dy = pos.y - this.currentPos.y
             const dist = Math.sqrt(dx*dx + dy*dy)
-
-            //console.log(pos, this.currentPos, dx, dy, dist)
-
-            const maxAccn = 512
-            const fingerSize = 30
-
-            if(dist < fingerSize && ay == 0 && az == 0){
+            const maxAccn = 80
+            const fingerSize = 13
+            if(dist < fingerSize){
                 const accnNorm = {x: dx/dist, y: dy/dist}
                 const requiredLength = (1 - dist/fingerSize) * maxAccn
                 const finalAccn = {x: accnNorm.x * requiredLength, y:accnNorm.y*requiredLength}
                 a.setXYZ(i, finalAccn.x, -finalAccn.y, 0)
+                s.setX(i, rand(2.5, 3.5))
+                hu.setX(i, 0.0)
             }
             else{
                 a.setXYZ(i, 0, 0, 0)
             }
-
-            //console.log("v incr", ax, ay)
-
             const fallOff = 0.8
-
             v.setXYZ(i, (vx + ax*delta)*fallOff, (vy + ay * delta)*fallOff, 0)
-
-
-
-
-            //update a and v
-            
-
-                    
         }
     }
-    animate(time: number){
-        //this.drawWind()
-        //this.applyWind()
-        this.applyWind2()
-        const delta = time - this.time;
-        this.uniforms.time.value = delta/10
-        this.time = time
-        this.uniforms.u_texture.value = this.cTexture
-        this.geo.attributes.position.needsUpdate = true
+    animate(){
+        this.applyWind()
         this.renderer.render(this.scene, this.camera)
         this.geo.attributes.position.needsUpdate = true
+        this.geo.attributes.scale.needsUpdate = true
+        this.geo.attributes.hue.needsUpdate = true
         requestAnimationFrame(this.animate)
     }
-   
-
 }
 
 

@@ -112,7 +112,7 @@ vec2 hash2(vec2 p ) {
 vec4 caustic(vec2 uv){
     vec4 a = vec4(0.4, 0.4, 0.5, 0.05);
     vec4 b = vec4(0.9, 0.9, 1.0, 0.1);
-    return vec4(mix(a, b, smoothstep(0.0, 0.5, ov(uv*15.0))));
+    return vec4(mix(a, b, smoothstep(0.0, 0.5, ov(uv*35.0))));
 }
 
 vec4 renderPass() {
@@ -136,7 +136,7 @@ vec4 renderPass() {
     vec3 env2 = caustic(uv).rgb;
 
     vec3 tex = env * shade;
-    vec3 texCol = (0.5*blue + tex + 0.3*env1 + 0.1*env2) / 2.0;
+    vec3 texCol = (0.5*blue + tex + 0.3*env1 + 0.2*env2) / 2.0;
     return vec4(texCol, 1.0);
 }
 

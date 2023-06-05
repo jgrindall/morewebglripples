@@ -5,7 +5,7 @@
 import * as THREE from 'three'
 import {Brush} from "./brush"
 import {height2normal} from "./heightToNormals"
-import gradient from './filter'
+import Filter from './filter'
 //@ts-ignore
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
@@ -82,10 +82,6 @@ export class Sand{
         this.container = document.getElementById('container');
         this.camera = new THREE.OrthographicCamera()
 
-        
-        
-
-
         this.camera.position.z = 200.5;
         this.camera.position.x = 1;
         this.camera.position.y = 1;
@@ -121,14 +117,22 @@ export class Sand{
         var material = new THREE.MeshPhongMaterial({
             map: this.mTexture,
             displacementMap: this.texture,
-            displacementScale: 2.25,
+            displacementScale: 0.25,
             //normalMap: this.nTexture,
-            //normalScale: new THREE.Vector2(0.0, 5.0)
+            //normalScale: new THREE.Vector2(0.0, 5.0),
         })
 
         material.side = THREE.DoubleSide
         
         this.mesh = new THREE.Mesh(geometry, material)
+
+        this.mesh.customDepthMaterial = new THREE.MeshDepthMaterial( {
+            depthPacking: THREE.RGBADepthPacking,
+            displacementMap: this.texture,
+            displacementScale: 1,
+            displacementBias: 1
+        });
+
 
         const dLight = new THREE.DirectionalLight(0xD7C26E, 0.8)
         const dLight2 = new THREE.DirectionalLight(0xD7C26E, 0.8)
@@ -170,14 +174,16 @@ export class Sand{
         this.renderer = new THREE.WebGLRenderer({
             alpha: true
         })
+
+        this.renderer.shadowMap.enabled = true
+        this.renderer.shadowMap.type = THREE.PCFShadowMap
+        this.renderer.useLegacyLights = false  
+
         this.renderer.setSize(w, h)
         this.container.appendChild(this.renderer.domElement)
 
-        this.renderer.shadowMap.enabled = true
-
         this.mesh.castShadow = true
         this.mesh.receiveShadow = true
-
 
         this.scene.add(new THREE.CameraHelper(this.camera)) 
 
@@ -190,8 +196,8 @@ export class Sand{
     onDraw(){
 
 
-       
-        gradient(this.drawingCanvas, this.edgeContext)
+        new Filter(this.drawingCanvas, this.edgeContext).run()
+        
 
 
         this.sumContext.clearRect(0,0, w, h)
