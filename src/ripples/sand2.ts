@@ -84,7 +84,7 @@ export class Sand2{
         this.addListeners()
     }
     onDraw(){
-        new Filter(this.drawingCanvas, this.edgeContext).run()
+        //new Filter(this.drawingCanvas, this.edgeContext).run()
         
         this.wetSandContext.clearRect(0,0,w,h)
         this.wetSandContext.drawImage(wetSandImage, 0, 0, w, h)

@@ -2,8 +2,8 @@
 import * as THREE from 'three'
 import Filter from './filter'
 
-const w = 800
-const h = 400
+const w = 600
+const h = 300
 
 var width = 9
 var height = 4
@@ -33,12 +33,14 @@ export class Points{
     uniforms: any
     geo: THREE.BufferGeometry
     
-    
     drawingCanvas: HTMLCanvasElement
     drawingContext: CanvasRenderingContext2D
 
     drawingCanvas2: HTMLCanvasElement
     drawingContext2: CanvasRenderingContext2D
+
+    drawingCanvas3: HTMLCanvasElement
+    drawingContext3: CanvasRenderingContext2D
 
     texture: any
 
@@ -47,7 +49,6 @@ export class Points{
 
     combinedCanvas: HTMLCanvasElement
     combinedContext: CanvasRenderingContext2D
-
 
     dryCanvas: HTMLCanvasElement
     dryContext: CanvasRenderingContext2D
@@ -102,6 +103,9 @@ export class Points{
 
         this.drawingCanvas2 = makeCanvas("drawingCanvas2", w, h)
         this.drawingContext2 = this.drawingCanvas2.getContext('2d');
+
+        this.drawingCanvas3 = makeCanvas("drawingCanvas3", w, h)
+        this.drawingContext3 = this.drawingCanvas3.getContext('2d');
         
         //this.cTexture = new THREE.CanvasTexture(this.drawingCanvas);
 
@@ -127,6 +131,8 @@ export class Points{
         this.renderer = new THREE.WebGLRenderer({alpha: true});
         this.renderer.setSize(w, h)
         this.container.appendChild(this.renderer.domElement);
+
+        console.log(this.renderer.domElement)
 
         const MAX = 10000
 
@@ -175,7 +181,7 @@ export class Points{
 
             hues.push(1)
             
-            scale.push(1)
+            scale.push(0)
            
         }
         this.b1 = new THREE.Float32BufferAttribute(initialPositions, 3)
@@ -191,7 +197,14 @@ export class Points{
         this.geo.setAttribute('scale', this.b5)
         
         this.uniforms = {
-            
+            u_resolution: {
+                type: "v2",
+                value: new THREE.Vector2(w, h) 
+            },
+            u_texture:{
+                type: "t",
+                value: null
+            }
         }
 
         const mat = new THREE.ShaderMaterial( {
@@ -207,15 +220,19 @@ void main() {
     vec2 uv = position.xy;
     vHue = hue;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-    gl_PointSize = scale;
+    gl_PointSize = scale * 0.333;
 }
 `,
 
             fragmentShader: `
 varying float vHue;
+uniform sampler2D u_texture;
+uniform vec2 u_resolution;
 void main() {
-    vec3 sand = vec3(230.0/255.0, 210.0/255.0, 160.0/255.0);
-    gl_FragColor = vec4(sand * vHue, 0.2);
+    vec2 _sample = gl_FragCoord.xy / u_resolution.xy;
+    vec4 fragcolour = texture2D(u_texture, _sample);
+    vec4 sand = vec4(70.0/255.0, 55.0/255.0, 41.0/255.0, 0.75);
+    gl_FragColor = sand;
 }
 `,
             vertexColors: true
@@ -238,7 +255,7 @@ void main() {
         realLight.position.set(0, 0, 10);
         
         this.scene.add(this.mesh)
-        this.scene.add(this.box)
+        //this.scene.add(this.box)
         this.scene.add(realLight)
         this.scene.add(this.camera)
         
@@ -278,8 +295,6 @@ void main() {
         const drawAt = (p:{x:number, y:number})=>{
             let drawingW = drawingSize*scale
             this.drawingContext.drawImage(this.pen, 0, 0, penSize, penSize, p.x - drawingW/2, p.y - drawingW/2, drawingW, drawingW)
-            drawingW *= 2.5
-            this.drawingContext2.drawImage(this.pen, 0, 0, penSize, penSize, p.x - drawingW/2, p.y - drawingW/2, drawingW, drawingW)
         }
 
         for(let i = 1; i <= numPoints; i++){
@@ -290,11 +305,13 @@ void main() {
         
         }
 
+        new Filter(this.drawingCanvas, this.drawingCanvas3).run()
+
         this.dryContext.drawImage(this.dry, 0, 0)
         
         this.noiseContext.drawImage(this.noise, 0, 0)
         this.noiseContext.globalCompositeOperation = "destination-in"
-        this.noiseContext.drawImage(this.drawingCanvas2, 0, 0)
+        this.noiseContext.drawImage(this.drawingCanvas3, 0, 0)
         this.noiseContext.globalCompositeOperation = "source-over"
 
         this.wetContext.drawImage(this.wet, 0, 0)
@@ -366,13 +383,13 @@ void main() {
             const dy = pos.y - this.currentPos.y
             const dist = Math.sqrt(dx*dx + dy*dy)
             const maxAccn = 80
-            const fingerSize = 13
+            const fingerSize = 10
             if(dist < fingerSize){
                 const accnNorm = {x: dx/dist, y: dy/dist}
                 const requiredLength = (1 - dist/fingerSize) * maxAccn
                 const finalAccn = {x: accnNorm.x * requiredLength, y:accnNorm.y*requiredLength}
                 a.setXYZ(i, finalAccn.x, -finalAccn.y, 0)
-                s.setX(i, rand(2.5, 3.5))
+                s.setX(i, rand(2, 7))
                 hu.setX(i, 0.0)
             }
             else{
@@ -384,6 +401,7 @@ void main() {
     }
     animate(){
         this.applyWind()
+        this.uniforms.u_texture.value = this.texture
         this.renderer.render(this.scene, this.camera)
         this.geo.attributes.position.needsUpdate = true
         this.geo.attributes.scale.needsUpdate = true

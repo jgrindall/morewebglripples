@@ -4,12 +4,9 @@
 
 import * as THREE from 'three'
 import {Brush} from "./brush"
-import {height2normal} from "./heightToNormals"
 import Filter from './filter'
 //@ts-ignore
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-
-import {canvasBuf} from "./push"
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 
 console.log("Version", THREE.REVISION, OrbitControls)
 
@@ -196,7 +193,7 @@ export class Sand{
     onDraw(){
 
 
-        new Filter(this.drawingCanvas, this.edgeContext).run()
+        //new Filter(this.drawingCanvas, this.edgeContext).run()
         
 
 
